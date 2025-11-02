@@ -24,18 +24,19 @@ This system processes PDF documents to extract text, tables, and images, generat
 
 ## 🎬 Demo
 
-### Application Demo Video
-
-<video width="100%" controls>
-  <source src="demo/demo.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+<p align="center">
+  <a href="demo/demo.mp4">
+    ▶️ <strong>Watch Demo Video</strong>
+  </a>
+</p>
 
 ### Rate Limiting Feature
 
 The application includes intelligent rate limiting to handle API quota limits gracefully:
 
-![Rate Limit Feature](demo/RateLimit.png)
+<p align="center">
+  <img src="demo/RateLimit.png" alt="Rate Limit Feature" width="85%">
+</p>
 
 When API rate limits are exceeded, the system automatically:
 - Displays a user-friendly notification with countdown timer
