@@ -26,16 +26,25 @@ This system processes PDF documents to extract text, tables, and images, generat
 
 ### Application Demo Video
 
-<video width="100%" controls>
-  <source src="demo/demo.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+<p align="center">
+  <a href="https://drive.google.com/file/d/1OMZZVGFUAw15_2DG_opUuaaVKEL5KFqt/view?usp=sharing" target="_blank">
+    <img src="https://drive.google.com/uc?export=view&id=13BYp9KiUxsREJjRf5HHXCmH4naeltCcS" alt="Multimodal RAG Demo - Click to Watch" width="85%">
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://drive.google.com/file/d/1OMZZVGFUAw15_2DG_opUuaaVKEL5KFqt/view?usp=sharing">
+    ▶️ <strong>Watch Demo on Google Drive</strong>
+  </a>
+</p>
 
 ### Rate Limiting Feature
 
 The application includes intelligent rate limiting to handle API quota limits gracefully:
 
-![Rate Limit Feature](demo/RateLimit.png)
+<p align="center">
+  <img src="https://drive.google.com/uc?export=view&id=13BYp9KiUxsREJjRf5HHXCmH4naeltCcS" alt="Rate Limit Feature" width="85%">
+</p>
 
 When API rate limits are exceeded, the system automatically:
 - Displays a user-friendly notification with countdown timer
@@ -321,7 +330,6 @@ Multimodal RAG/
 │   │   ├── lib/             # API client and utilities
 │   │   └── types/           # TypeScript types
 │   └── package.json
-├── demo/                    # Demo video and screenshots
 ├── scripts/                 # Init scripts for Ollama
 ├── docker-compose.yml       # Docker orchestration
 ├── fresh_start.py          # Cleanup script
