@@ -50,24 +50,39 @@ Multimodal RAG system that processes PDFs (text, tables, images) and enables nat
 
 ## Features
 
-- PDF upload with progress tracking (SSE)
+- PDF upload with progress tracking (background processing with status endpoint)
 - Multimodal extraction (text, tables, images)
 - Semantic search with source citations
-- Streaming chat responses (SSE)
+- Streaming chat responses (SSE with rate limit handling)
+- Non-streaming chat endpoint for simple queries
 - Conversation history and session management
-- Rate limit handling with automatic retries
-- Real-time progress updates during processing
+- Intelligent rate limit handling with:
+  - Automatic retry mechanism (up to 4 attempts)
+  - Wait time extraction from API error messages
+  - Exponential backoff with jitter
+  - User-friendly countdown notifications
+  - Graceful error handling
+- Real-time progress updates during document processing
+- Document status tracking (processing, completed, failed)
 
 ## API Endpoints
 
-- `POST /api/upload` - Upload PDF (SSE progress stream)
-- `GET /api/documents` - List documents
-- `DELETE /api/documents/{id}` - Delete document
-- `POST /api/chat` - Chat (non-streaming)
-- `GET /api/chat/stream` - Chat (streaming SSE)
-- `GET /api/chat/messages/{session_id}` - Get history
-- `GET /api/chat/sessions` - List sessions
-- `DELETE /api/chat/sessions/{id}` - Delete session
+### Document Management
+- `POST /api/upload` - Upload PDF (returns immediately, processes in background)
+- `GET /api/upload/status/{doc_id}` - Get upload processing status and progress
+- `GET /api/documents` - List all documents
+- `DELETE /api/documents/{id}` - Delete document and associated data
+
+### Chat
+- `POST /api/chat` - Chat (non-streaming, returns complete response)
+- `GET /api/chat/stream` - Chat (streaming SSE with rate limit handling)
+- `GET /api/chat/messages/{session_id}` - Get chat history for a session
+- `GET /api/chat/sessions` - List all chat sessions
+- `GET /api/chat/sessions/{session_id}` - Get session summary information
+- `DELETE /api/chat/sessions/{id}` - Delete session and all messages
+
+### Health
+- `GET /api/health` - API health check
 
 ## Configuration
 
@@ -83,10 +98,13 @@ IMAGE_SUMMARIZER_MODEL_ID=gemini-2.0-flash
 
 ## Data Storage
 
-- `backend/data/app.db` - SQLite (documents, messages, sessions)
+- `backend/data/app.db` - SQLite (documents, messages, sessions metadata)
 - `backend/data/uploads/{doc_id}/` - PDF files and processed JSON
-- `backend/chroma_db/` - ChromaDB vector store
-- `backend/data/parents_index/{doc_id}.json` - Parent-child mappings
+  - `parents.json` - Extracted content (texts, tables, images)
+  - `summaries.json` - Generated summaries
+- `backend/chroma_db/` - ChromaDB vector store (vector embeddings)
+- `backend/data/parents_index/{doc_id}.json` - Parent-child mappings for retrieval
+- `backend/data/logs/` - Application logs
 
 ## Quick Start
 
@@ -104,8 +122,23 @@ docker-compose up -d
 
 ## Fresh Start
 
+The `fresh_start.py` script provides an automated way to reset the application:
+
 ```bash
-python3 fresh_start.py  # Automated cleanup script
+python3 fresh_start.py  # Interactive cleanup script
 ```
 
-Deletes: database, uploads, ChromaDB, parents_index, logs
+**What it deletes:**
+- SQLite database (`app.db`)
+- All uploaded documents and processed files
+- ChromaDB vector store
+- Parents index mappings
+- Application logs
+
+**Features:**
+- Supports both local and Docker environments
+- Interactive confirmation prompts
+- Safe deletion with size reporting
+- Option to restart Docker containers automatically
+
+**Note:** This action is irreversible. All data will be permanently deleted.

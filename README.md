@@ -22,6 +22,27 @@ This system processes PDF documents to extract text, tables, and images, generat
 - **💾 Persistent Sessions**: Chat history and conversation context management
 - **🎨 Modern UI**: React-based interface with dark/light theme support
 
+## 🎬 Demo
+
+### Application Demo Video
+
+<video width="100%" controls>
+  <source src="demo/demo.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
+
+### Rate Limiting Feature
+
+The application includes intelligent rate limiting to handle API quota limits gracefully:
+
+![Rate Limit Feature](demo/RateLimit.png)
+
+When API rate limits are exceeded, the system automatically:
+- Displays a user-friendly notification with countdown timer
+- Implements automatic retry mechanism (up to 4 attempts)
+- Pauses chat interactions until the limit resets
+- Provides real-time feedback on retry attempts
+
 ## 🏗️ Architecture
 
 ```
@@ -281,24 +302,29 @@ VITE_API_BASE=http://localhost:8000
 Multimodal RAG/
 ├── backend/
 │   ├── app/
-│   │   ├── api/v1/          # API endpoints
-│   │   ├── core/            # Configuration
-│   │   ├── db/              # Database setup
-│   │   ├── models/          # SQLAlchemy models
+│   │   ├── api/v1/          # API endpoints (chat, documents, upload, health)
+│   │   ├── core/            # Configuration and logging
+│   │   ├── db/              # Database setup and migrations
+│   │   ├── models/          # SQLAlchemy models (document, message)
 │   │   ├── repositories/    # Data access layer
 │   │   ├── schemas/         # Pydantic schemas
-│   │   ├── services/        # Business logic
-│   │   └── utils/           # Utilities
+│   │   ├── services/        # Business logic (PDF, RAG, vector, summary, LLM)
+│   │   └── utils/           # Utilities (file handling, rate limiting)
 │   ├── chroma_db/           # Vector database storage
-│   ├── data/                # SQLite DB and uploads
+│   ├── data/                # SQLite DB, uploads, logs, parents_index
+│   ├── reference code/      # Jupyter notebooks for experimentation
 │   └── main.py              # FastAPI entry point
 ├── frontend/
 │   ├── src/
-│   │   ├── components/      # React components
-│   │   ├── pages/           # Page components
-│   │   ├── lib/             # API client
+│   │   ├── components/      # React components (Chat, Sidebar, Upload, etc.)
+│   │   ├── pages/           # Page components (ChatPage, UploadPage, etc.)
+│   │   ├── lib/             # API client and utilities
 │   │   └── types/           # TypeScript types
 │   └── package.json
+├── demo/                    # Demo video and screenshots
+├── scripts/                 # Init scripts for Ollama
+├── docker-compose.yml       # Docker orchestration
+├── fresh_start.py          # Cleanup script
 └── README.md                # This file
 ```
 
@@ -306,14 +332,16 @@ Multimodal RAG/
 
 ### Document Management
 - `POST /api/upload` - Upload and process PDF
+- `GET /api/upload/status/{doc_id}` - Get upload processing status
 - `GET /api/documents` - List all documents
 - `DELETE /api/documents/{doc_id}` - Delete document
 
 ### Chat
-- `POST /api/chat` - Send chat message
+- `POST /api/chat` - Send chat message (non-streaming)
 - `GET /api/chat/stream` - Stream chat responses (SSE)
-- `GET /api/chat/messages/{session_id}` - Get chat history
-- `GET /api/chat/sessions` - List chat sessions
+- `GET /api/chat/messages/{session_id}` - Get chat history for a session
+- `GET /api/chat/sessions` - List all chat sessions
+- `GET /api/chat/sessions/{session_id}` - Get session summary information
 - `DELETE /api/chat/sessions/{session_id}` - Delete session
 
 ### Health
