@@ -23,20 +23,15 @@ This system processes PDF documents to extract text, tables, and images, generat
 - **🎨 Modern UI**: React-based interface with dark/light theme support
 
 ## 🎬 Demo
+Here’s a short walkthrough of the **Multimodal RAG System** in action — showcasing document upload, intelligent summarization, and natural language Q&A.
+### 🔗 **Demo Video:**  
+
+https://github.com/user-attachments/assets/c9d09116-19c0-4aab-8cd8-3ab40ff26b5e
 
 <p align="center">
-  <a href="demo/demo.mp4">
-    ▶️ <strong>Watch Demo Video</strong>
-  </a>
+  <img width="85%" alt="Multimodal RAG Demo" src="https://github.com/user-attachments/assets/51aa163e-408a-4fb5-aeb5-57ce06c2e473" />
 </p>
-
-### Rate Limiting Feature
-
-The application includes intelligent rate limiting to handle API quota limits gracefully:
-
-<p align="center">
-  <img src="demo/RateLimit.png" alt="Rate Limit Feature" width="85%">
-</p>
+Above: A snapshot of the rate-limiting feature in action, showing how the system gracefully handles API quota limits with countdown and retry feedback.
 
 When API rate limits are exceeded, the system automatically:
 - Displays a user-friendly notification with countdown timer
