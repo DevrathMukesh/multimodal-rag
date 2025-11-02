@@ -12,10 +12,18 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Send, Settings, Loader2, Plus } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Send, Settings, Loader2, Plus, Clock, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card } from "@/components/ui/card";
 import { ThemeToggle } from "./ThemeToggle";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 interface ChatProps {
   sessionId: string;
@@ -32,6 +40,12 @@ export function Chat({ sessionId, activeDocumentId, onNewChat }: ChatProps) {
     includeImages: true,
     streamResponses: true,
   });
+  const [rateLimitInfo, setRateLimitInfo] = useState<{
+    waitSeconds: number;
+    initialWaitSeconds: number; // Store initial value for progress calculation
+    retryAttempt: number;
+    maxRetries: number;
+  } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
@@ -56,6 +70,38 @@ export function Chat({ sessionId, activeDocumentId, onNewChat }: ChatProps) {
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Countdown timer for rate limit (fallback if backend updates are delayed)
+  useEffect(() => {
+    if (!rateLimitInfo || rateLimitInfo.waitSeconds <= 0) {
+      if (rateLimitInfo && rateLimitInfo.waitSeconds <= 0) {
+        // Wait finished, clear after a brief delay
+        setTimeout(() => setRateLimitInfo(null), 500);
+      }
+      return;
+    }
+
+    // Countdown timer - decreases every second
+    // Backend now sends only one event, so we handle countdown locally
+    const interval = setInterval(() => {
+      setRateLimitInfo((prev) => {
+        if (!prev || prev.waitSeconds <= 1) {
+          clearInterval(interval);
+          // Keep the info for a moment to show completion, then clear
+          setTimeout(() => setRateLimitInfo(null), 500);
+          return { ...prev, waitSeconds: 0 };
+        }
+        return { 
+          ...prev, 
+          waitSeconds: prev.waitSeconds - 1,
+          // Preserve initialWaitSeconds if not set
+          initialWaitSeconds: prev.initialWaitSeconds || prev.waitSeconds
+        };
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [rateLimitInfo?.waitSeconds]); // Only run when waitSeconds changes (will be updated by backend events)
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const currentAssistantIdRef = useRef<string | null>(null);
@@ -170,10 +216,72 @@ export function Chat({ sessionId, activeDocumentId, onNewChat }: ChatProps) {
       const chunk = evt.data || "";
       const cleanChunk = chunk.startsWith("data: ") ? chunk.slice(6) : chunk;
 
+      // Skip rate_limit event data - it's handled by the event listener
+      // Check if this looks like a rate limit JSON payload
+      try {
+        const parsed = JSON.parse(cleanChunk);
+        if (parsed && (parsed.wait_seconds !== undefined || parsed.type === "waiting")) {
+          // Manually trigger rate limit handler as fallback (in case event listener didn't fire)
+          const waitSeconds = Math.ceil(parsed.wait_seconds || 0);
+          setRateLimitInfo((prev) => {
+            const isNewRateLimit = !prev || (prev.waitSeconds < waitSeconds);
+            const initialWaitSeconds = isNewRateLimit 
+              ? waitSeconds 
+              : (prev?.initialWaitSeconds || waitSeconds);
+            
+            return {
+              waitSeconds,
+              initialWaitSeconds,
+              retryAttempt: parsed.retry_attempt || 1,
+              maxRetries: parsed.max_retries || 4,
+            };
+          });
+          
+          // Remove any messages that contain rate limit data
+          setMessages((prev) => 
+            prev.filter((m) => {
+              const content = m.content.toLowerCase();
+              // Remove if it contains rate limit indicators
+              return !(content.includes("wait_seconds") && content.includes("retry_attempt")) &&
+                     !content.includes("event: rate_limit") &&
+                     !content.includes('"type":"waiting"');
+            })
+          );
+          
+          return; // Don't add rate limit events to message content
+        }
+      } catch (e) {
+        // Not JSON, continue processing
+      }
+
+      // Skip raw rate limit event strings
+      if (cleanChunk.includes("event: rate_limit") || 
+          (cleanChunk.includes("wait_seconds") && cleanChunk.includes("retry_attempt"))) {
+        // Try to extract and set rate limit info from the string
+        try {
+          const jsonMatch = cleanChunk.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const parsed = JSON.parse(jsonMatch[0]);
+            if (parsed.wait_seconds) {
+              setRateLimitInfo({
+                waitSeconds: Math.ceil(parsed.wait_seconds),
+                initialWaitSeconds: Math.ceil(parsed.wait_seconds),
+                retryAttempt: parsed.retry_attempt || 1,
+                maxRetries: parsed.max_retries || 4,
+              });
+            }
+          }
+        } catch (e) {
+          // Ignore parsing errors
+        }
+        return; // Don't add rate limit events to message content
+      }
+
       // Handle end event
       if (cleanChunk.trim() === "event: end" || cleanChunk.includes("event: end")) {
         es.close();
         eventSourceRef.current = null;
+        setRateLimitInfo(null); // Clear rate limit info when stream ends
         fetchSourcesForMessage(assistantId, question);
         return;
       }
@@ -184,6 +292,7 @@ export function Chat({ sessionId, activeDocumentId, onNewChat }: ChatProps) {
         es.close();
         eventSourceRef.current = null;
         setIsLoading(false);
+        setRateLimitInfo(null);
         toast({
           title: "Error",
           description: errorMsg,
@@ -201,6 +310,32 @@ export function Chat({ sessionId, activeDocumentId, onNewChat }: ChatProps) {
         );
       }
     };
+
+    // Handle rate_limit events
+    es.addEventListener("rate_limit", (evt) => {
+      try {
+        const data = JSON.parse(evt.data);
+        const waitSeconds = Math.ceil(data.wait_seconds || 0);
+        setRateLimitInfo((prev) => {
+          // If this is a new rate limit event (no previous info or wait time is higher than current), 
+          // set initialWaitSeconds to the new wait time
+          // Otherwise, preserve the existing initialWaitSeconds for progress calculation
+          const isNewRateLimit = !prev || (prev.waitSeconds < waitSeconds);
+          const initialWaitSeconds = isNewRateLimit 
+            ? waitSeconds  // New rate limit - this is the starting wait time
+            : (prev.initialWaitSeconds || waitSeconds);  // Preserve initial or use current as fallback
+          
+          return {
+          waitSeconds,
+            initialWaitSeconds,
+          retryAttempt: data.retry_attempt || 1,
+          maxRetries: data.max_retries || 4,
+          };
+        });
+      } catch (e) {
+        console.error("Failed to parse rate limit event", e);
+      }
+    });
 
     es.addEventListener("end", () => {
       es.close();
@@ -334,6 +469,82 @@ export function Chat({ sessionId, activeDocumentId, onNewChat }: ChatProps) {
           </Popover>
         </div>
       </div>
+
+      {/* Rate Limit Modal/Popup */}
+      <Dialog 
+        open={!!rateLimitInfo && rateLimitInfo.waitSeconds > 0} 
+        onOpenChange={(open) => {
+          // Prevent closing while countdown is active
+          if (!open && rateLimitInfo && rateLimitInfo.waitSeconds > 0) {
+            return; // Don't allow closing while waiting
+          }
+          if (!open && rateLimitInfo && rateLimitInfo.waitSeconds <= 0) {
+            setRateLimitInfo(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md pointer-events-auto" onPointerDownOutside={(e) => {
+          // Prevent closing by clicking outside
+          if (rateLimitInfo && rateLimitInfo.waitSeconds > 0) {
+            e.preventDefault();
+          }
+        }} onEscapeKeyDown={(e) => {
+          // Prevent closing with Escape key while waiting
+          if (rateLimitInfo && rateLimitInfo.waitSeconds > 0) {
+            e.preventDefault();
+          }
+        }}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-500 animate-pulse" />
+              Rate Limit - Please Wait
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              API quota exceeded. The system is waiting before automatically retrying.
+            </DialogDescription>
+          </DialogHeader>
+          {rateLimitInfo && (
+            <div className="space-y-4 py-4">
+              {/* Countdown Display */}
+              <div className="flex flex-col items-center justify-center space-y-2">
+                <div className="flex items-center gap-3">
+                  <Clock className="h-6 w-6 text-yellow-600 dark:text-yellow-500 animate-pulse" />
+                  <div className="text-center">
+                    <div className="text-3xl font-bold font-mono text-yellow-600 dark:text-yellow-500">
+                      {rateLimitInfo.waitSeconds}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      second{rateLimitInfo.waitSeconds !== 1 ? "s" : ""} remaining
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Progress Bar - shows decreasing progress */}
+              <div className="w-full bg-yellow-200/30 dark:bg-yellow-800/30 rounded-full h-2 overflow-hidden">
+                <div
+                  className="h-full bg-yellow-500 dark:bg-yellow-400 transition-all duration-1000 ease-linear"
+                  style={{
+                    width: `${Math.max(0, Math.min(100, rateLimitInfo.initialWaitSeconds 
+                      ? ((rateLimitInfo.initialWaitSeconds - rateLimitInfo.waitSeconds) / rateLimitInfo.initialWaitSeconds) * 100
+                      : 0))}%`,
+                  }}
+                />
+              </div>
+
+              {/* Retry Info */}
+              <div className="text-center text-sm text-muted-foreground">
+                Retry attempt {rateLimitInfo.retryAttempt} of {rateLimitInfo.maxRetries}
+              </div>
+
+              {/* Message */}
+              <div className="text-center text-xs text-muted-foreground italic">
+                Chat is temporarily paused. Will automatically continue when ready...
+              </div>
+        </div>
+      )}
+        </DialogContent>
+      </Dialog>
 
       <ScrollArea className="flex-1 p-4">
         <div className="space-y-4 max-w-4xl mx-auto">

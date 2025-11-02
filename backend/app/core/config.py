@@ -1,12 +1,29 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
-from typing import List
+from pydantic import Field, field_validator, model_validator
+from typing import List, Union
 import os
 from dotenv import load_dotenv
 
-# Explicitly load .env file as fallback - ensures it's loaded even if path resolution fails
-_env_file_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env")
-if os.path.exists(_env_file_path):
+# Look for .env file in project root (one level up from backend/)
+# Path: backend/app/core/config.py -> backend/ -> root/
+_backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))  # backend/
+_root_dir = os.path.dirname(_backend_dir)  # project root
+
+# Check multiple locations in order of preference:
+# 1. Project root .env (primary location)
+# 2. /app/.env (Docker mount location - root .env mounted at backend level)
+# 3. backend/.env (fallback for backward compatibility)
+_env_file_path = None
+for path in [
+    os.path.join(_root_dir, ".env"),  # Project root
+    "/app/.env",  # Docker mount location
+    os.path.join(_backend_dir, ".env"),  # backend/.env fallback
+]:
+    if os.path.exists(path):
+        _env_file_path = path
+        break
+
+if _env_file_path:
     load_dotenv(_env_file_path, override=True)
 
 
@@ -21,12 +38,29 @@ class Settings(BaseSettings):
     )
     api_v1_str: str = "/api"
 
-    # CORS
-    cors_allow_origins: List[str] = [
-        "http://localhost:5173",  # Vite default
-        "http://localhost:3000",
-        "http://localhost:8080",  # Vite fallback (current dev server)
-    ]
+    # CORS - defaults are set, can override via CORS_ALLOW_ORIGINS env var (comma-separated)
+    cors_allow_origins: List[str] = Field(
+        default=[
+            "http://localhost:5173",  # Vite default & Docker frontend port
+            "http://localhost:3000",
+            "http://localhost:8080",  # Vite fallback
+            "http://127.0.0.1:5173",  # Alternative localhost format
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:8080",
+            "http://frontend:80",  # Docker internal frontend
+        ]
+    )
+    
+    @model_validator(mode="before")
+    @classmethod
+    def parse_cors_from_env(cls, data: Union[dict, type]) -> dict:
+        """Parse CORS_ALLOW_ORIGINS from environment if provided as comma-separated string."""
+        if isinstance(data, dict):
+            cors_value = data.get("cors_allow_origins") or os.getenv("CORS_ALLOW_ORIGINS")
+            if cors_value and isinstance(cors_value, str):
+                # Split comma-separated string into list
+                data["cors_allow_origins"] = [x.strip() for x in cors_value.split(",") if x.strip()]
+        return data
 
     # Paths
     base_dir: str = Field(default_factory=lambda: os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
@@ -64,10 +98,16 @@ settings = Settings()
 if not settings.google_api_key:
     import logging
     logger = logging.getLogger(__name__)
+    checked_paths = [
+        os.path.join(_root_dir, ".env"),
+        "/app/.env",
+        os.path.join(_backend_dir, ".env"),
+    ]
     logger.warning(
         f"GOOGLE_API_KEY is empty! "
-        f"Checked .env file at: {_env_file_path}, "
-        f"File exists: {os.path.exists(_env_file_path)}"
+        f"Checked .env files at: {checked_paths}. "
+        f"Found .env at: {_env_file_path if _env_file_path else 'None'}. "
+        f"Make sure GOOGLE_API_KEY is set in your .env file."
     )
 
 

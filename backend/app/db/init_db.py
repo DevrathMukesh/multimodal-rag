@@ -3,7 +3,13 @@ from app.db.session import engine
 from app.utils.file import ensure_dir
 from app.core.config import settings
 from app.db.migrate_add_sources import migrate_add_sources_column
+from app.db.migrate_add_status import migrate_add_status_column
+from app.db.migrate_add_progress import migrate_add_progress_column
 import logging
+
+# Import models to ensure they're registered with Base.metadata before table creation
+from app.models.document import Document  # noqa: F401
+from app.models.message import Message  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
@@ -26,14 +32,12 @@ def init_db() -> None:
     
     # Run migrations for existing databases
     try:
-        success = migrate_add_sources_column()
-        if success:
-            logger.info("Database migration completed successfully")
-        else:
-            logger.warning("Database migration may have failed - check logs above")
+        migrate_add_sources_column()
+        migrate_add_status_column()
+        migrate_add_progress_column()
+        logger.info("Database migrations completed")
     except Exception as e:
-        logger.error(f"Error running database migration: {e}", exc_info=True)
+        logger.error(f"Error running database migrations: {e}", exc_info=True)
         # Don't raise - migration failures shouldn't prevent app startup
-        # if the column doesn't exist, operations will fail anyway
 
 

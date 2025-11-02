@@ -18,14 +18,18 @@ router = APIRouter()
 @router.get("/", response_model=dict)
 def get_documents(db: Session = Depends(get_db)) -> dict:
     docs = list_documents(db)
+    # Filter out failed documents - they shouldn't appear in the list
     items = [
         DocumentRead(
             id=d.id,
             name=d.name,
             pages=d.pages,
+            status=getattr(d, "status", "completed"),  # Default to completed for old records
+            progress=getattr(d, "progress", 0),
             createdAt=d.created_at.replace(tzinfo=timezone.utc).isoformat(),
         )
         for d in docs
+        if getattr(d, "status", "completed") != "failed"  # Exclude failed documents
     ]
     return {"documents": [item.model_dump() for item in items]}
 

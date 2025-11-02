@@ -1,10 +1,11 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchDocuments, deleteDocumentById } from "@/lib/api";
-import { FileText, Upload, AlertCircle, Trash2 } from "lucide-react";
+import { FileText, Upload, AlertCircle, Trash2, Loader2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -21,10 +22,45 @@ export function SidebarDocuments({ activeDocumentId, onSelectDocument }: Sidebar
   const { data, isLoading, error } = useQuery({
     queryKey: ["documents"],
     queryFn: fetchDocuments,
-    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchInterval: (query) => {
+      // If there are processing documents, refresh more frequently (every 5 seconds)
+      const docs = query.state.data?.documents || [];
+      const hasProcessing = docs.some((doc) => doc.status === "processing");
+      return hasProcessing ? 5000 : 30000;
+    },
   });
 
   const documents = data?.documents || [];
+
+  // Get status icon and badge
+  const getStatusIndicator = (status?: string) => {
+    switch (status) {
+      case "processing":
+        return {
+          icon: <Loader2 className="h-3 w-3 animate-spin text-primary" />,
+          badge: (
+            <Badge variant="secondary" className="text-xs">
+              Processing
+            </Badge>
+          ),
+        };
+      case "failed":
+        return {
+          icon: <XCircle className="h-3 w-3 text-destructive" />,
+          badge: (
+            <Badge variant="destructive" className="text-xs">
+              Failed
+            </Badge>
+          ),
+        };
+      case "completed":
+      default:
+        return {
+          icon: null,
+          badge: null,
+        };
+    }
+  };
 
   return (
     <div className="flex h-full flex-col border-r border-border bg-sidebar animate-slide-in-left">
@@ -73,22 +109,57 @@ export function SidebarDocuments({ activeDocumentId, onSelectDocument }: Sidebar
             </Card>
           )}
 
-          {documents.map((doc, idx) => (
+          {documents.map((doc, idx) => {
+            const isProcessing = doc.status === "processing";
+            const isFailed = doc.status === "failed";
+            const statusIndicator = getStatusIndicator(doc.status);
+            
+            return (
             <Card
               key={doc.id}
               className={cn(
-                "cursor-pointer p-3 transition-all duration-300 hover:bg-sidebar-accent hover:translate-x-1 hover:shadow-md animate-fade-in",
-                activeDocumentId === doc.id && "border-sidebar-primary bg-sidebar-accent scale-[1.02]"
+                  "p-3 transition-all duration-300 hover:shadow-md animate-fade-in",
+                  !isProcessing && "cursor-pointer hover:bg-sidebar-accent hover:translate-x-1",
+                  isProcessing && "opacity-75 cursor-not-allowed bg-muted/30",
+                  isFailed && "border-destructive/50",
+                  activeDocumentId === doc.id && !isProcessing && "border-sidebar-primary bg-sidebar-accent scale-[1.02]"
               )}
               style={{ animationDelay: `${idx * 0.1}s` }}
-              onClick={() => onSelectDocument(doc.id)}
+                onClick={() => {
+                  if (!isProcessing) {
+                    onSelectDocument(doc.id);
+                  } else {
+                    toast({
+                      title: "Processing",
+                      description: "This document is still being processed. Please wait until it's completed.",
+                      variant: "default",
+                    });
+                  }
+                }}
             >
               <div className="flex items-start gap-3">
-                <FileText className="h-5 w-5 text-sidebar-primary" />
+                  <div className="relative">
+                    <FileText className={cn(
+                      "h-5 w-5",
+                      isProcessing ? "text-muted-foreground" : "text-sidebar-primary"
+                    )} />
+                    {statusIndicator.icon && (
+                      <div className="absolute -bottom-0.5 -right-0.5 bg-background rounded-full">
+                        {statusIndicator.icon}
+                      </div>
+                    )}
+                  </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-medium text-sm truncate text-sidebar-foreground">
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className={cn(
+                        "font-medium text-sm truncate",
+                        isProcessing && "text-muted-foreground",
+                        isFailed && "text-destructive"
+                      )}>
                     {doc.name}
                   </h3>
+                      {statusIndicator.badge}
+                    </div>
                   <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                     <span className="font-mono">{doc.pages} pages</span>
                     <span>•</span>
@@ -99,8 +170,17 @@ export function SidebarDocuments({ activeDocumentId, onSelectDocument }: Sidebar
                   variant="ghost"
                   size="icon"
                   className="ml-auto hover:text-destructive"
+                    disabled={isProcessing}
                   onClick={async (e) => {
                     e.stopPropagation();
+                      if (isProcessing) {
+                        toast({
+                          title: "Processing",
+                          description: "Cannot delete a document that is currently processing.",
+                          variant: "default",
+                        });
+                        return;
+                      }
                     const ok = window.confirm(`Delete \"${doc.name}\"? This cannot be undone.`);
                     if (!ok) return;
                     try {
@@ -113,13 +193,14 @@ export function SidebarDocuments({ activeDocumentId, onSelectDocument }: Sidebar
                     }
                   }}
                   aria-label="Delete document"
-                  title="Delete"
+                    title={isProcessing ? "Cannot delete while processing" : "Delete"}
                 >
-                  <Trash2 className="h-4 w-4" />
+                    <Trash2 className={cn("h-4 w-4", isProcessing && "opacity-50")} />
                 </Button>
               </div>
             </Card>
-          ))}
+            );
+          })}
         </div>
       </ScrollArea>
     </div>

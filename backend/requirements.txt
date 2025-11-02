@@ -1,3 +1,9 @@
+# System Dependencies Required (install separately, not via pip):
+# macOS: brew install poppler tesseract libmagic
+# Linux: sudo apt-get install poppler-utils tesseract-ocr libmagic-dev
+# Windows: choco install poppler tesseract libmagic
+# These are needed for unstructured[all-docs] to process PDFs with images/tables
+
 fastapi==0.115.4
 uvicorn[standard]==0.32.0
 pydantic==2.9.2
@@ -9,8 +15,8 @@ SQLAlchemy==2.0.35
 langchain==0.3.7
 langchain-community==0.3.7
 langchain-ollama>=0.1.0
-langchain-google-genai
-langchain-chroma
+langchain-google-genai>=1.0.0
+langchain-chroma>=0.1.0
 chromadb==0.5.23
 unstructured[all-docs]>=0.16.11,<0.17.0
 pdfminer.six==20221105

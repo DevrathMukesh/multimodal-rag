@@ -57,6 +57,7 @@ def get_text_summarizer_llm() -> ChatGoogleGenerativeAI:
             google_api_key=settings.google_api_key,
             temperature=0.3,
             max_tokens=512,
+            max_retries=0,  # Disable LangChain's automatic retries - we handle rate limits ourselves
         )
     return _text_summarizer_llm
 
@@ -70,6 +71,7 @@ def get_image_summarizer_llm() -> ChatGoogleGenerativeAI:
             model=settings.image_summarizer_model_id,
             google_api_key=settings.google_api_key,
             temperature=0.3,
+            max_retries=0,  # Disable LangChain's automatic retries - we handle rate limits ourselves
         )
     return _image_summarizer_llm
 

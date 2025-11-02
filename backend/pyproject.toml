@@ -5,6 +5,12 @@ description = "FastAPI backend for multimodal RAG"
 authors = ["Your Name <you@example.com>"]
 package-mode = false
 
+# NOTE: System dependencies required (install separately):
+# macOS: brew install poppler tesseract libmagic
+# Linux: sudo apt-get install poppler-utils tesseract-ocr libmagic-dev
+# Windows: choco install poppler tesseract libmagic
+# These are needed for unstructured[all-docs] PDF processing
+
 [tool.poetry.dependencies]
 python = "^3.11"
 fastapi = "0.115.4"

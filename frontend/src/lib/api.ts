@@ -42,6 +42,11 @@ export async function uploadDocument(file: File): Promise<Document> {
   });
 
   return handleResponse(response);
+    }
+
+export async function getUploadStatus(documentId: string): Promise<Document> {
+  const response = await fetch(`${API_BASE}/api/upload/status/${documentId}`);
+    return handleResponse(response);
 }
 
 export interface ChatRequest {

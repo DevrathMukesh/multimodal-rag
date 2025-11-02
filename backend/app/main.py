@@ -28,6 +28,7 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=["*"],  # Expose all headers for SSE and other responses
     )
 
     app.include_router(api_router_v1, prefix="/api")

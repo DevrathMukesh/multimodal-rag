@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment
+.env
+.env.local
+
+# Data directories (will be mounted as volumes)
+data/
+chroma_db/
+*.db
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Reference code (not needed in production)
+reference code/
+*.ipynb
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Poetry
+poetry.lock
+.poetry/
+
+# Git
+.git/
+.gitignore
+

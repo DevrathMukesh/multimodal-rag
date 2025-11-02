@@ -8,6 +8,7 @@ from langchain_core.output_parsers import StrOutputParser
 
 from app.services.vector_service import retrieve_with_sources
 from app.services.llm_service import get_chat_llm
+from app.utils.rate_limit import with_rate_limit_retry
 
 
 def build_prompt(
@@ -74,6 +75,7 @@ Current Question: {question}
     return ChatPromptTemplate.from_messages([HumanMessage(content=prompt_content)])
 
 
+@with_rate_limit_retry(max_retries=3, default_wait=60.0)
 def _chat_via_gemini(prompt: ChatPromptTemplate) -> str:
     """Generate answer using Gemini chat model."""
     parser = StrOutputParser()

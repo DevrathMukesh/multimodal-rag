@@ -22,6 +22,8 @@ export interface Document {
   id: string;
   name: string;
   pages: number;
+  status?: string; // processing, completed, failed
+  progress?: number; // 0-100 percentage
   createdAt: string;
 }
 

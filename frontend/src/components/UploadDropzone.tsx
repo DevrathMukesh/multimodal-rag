@@ -1,81 +1,137 @@
-import { useState, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useDropzone } from "react-dropzone";
-import { uploadDocument } from "@/lib/api";
+import { uploadDocument, getUploadStatus } from "@/lib/api";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Upload, FileText, CheckCircle2, XCircle } from "lucide-react";
+import { Upload, CheckCircle2, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 
 export function UploadDropzone() {
   const [isUploading, setIsUploading] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [uploadedFile, setUploadedFile] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<number>(0);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const onDrop = useCallback(
-    async (acceptedFiles: File[]) => {
-      if (acceptedFiles.length === 0) return;
-
-      const file = acceptedFiles[0];
-      if (!file.type.includes("pdf")) {
-        toast({
-          title: "Invalid file type",
-          description: "Only PDF files are supported",
-          variant: "destructive",
-        });
-        return;
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
       }
+    };
+  }, []);
 
-      setIsUploading(true);
-      setError(null);
-      setProgress(0);
+  const startPolling = (uploadId: string) => {
+    // Clear any existing polling
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+    }
 
-      // Simulate progress - slower and more realistic
-      let progressValue = 0;
-      const progressInterval = setInterval(() => {
-        progressValue += 2; // Increment by 2% instead of 10%
-        if (progressValue >= 95) {
-          clearInterval(progressInterval);
-          setProgress(95); // Cap at 95% until upload completes
-        } else {
-          setProgress(progressValue);
-        }
-      }, 500); // Update every 500ms instead of 200ms for slower progression
-
+    pollIntervalRef.current = setInterval(async () => {
       try {
-        const document = await uploadDocument(file);
-        clearInterval(progressInterval);
-        setProgress(100);
-        setUploadedFile(document.name);
+        const status = await getUploadStatus(uploadId);
+        setProgress(status.progress || 0);
 
+        if (status.status === "completed") {
+          setIsUploading(false);
+          setError(null); // Clear any errors
+          setUploadedFile(status.name);
+          setProgress(100);
+          if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+          }
+          toast({
+            title: "Upload completed",
+            description: `${status.name} has been processed successfully`,
+          });
+          setTimeout(() => navigate("/"), 2000);
+        } else if (status.status === "failed") {
+          setIsUploading(false);
+          setUploadedFile(null); // Clear success message
+          setError("Upload processing failed. Check backend logs for details.");
+          setProgress(0);
+          if (pollIntervalRef.current) {
+            clearInterval(pollIntervalRef.current);
+            pollIntervalRef.current = null;
+          }
+          toast({
+            title: "Upload failed",
+            description: "Processing failed. Please check your API configuration.",
+            variant: "destructive",
+          });
+        }
+      } catch (err) {
+        // Stop polling on error
+        setIsUploading(false);
+        setUploadedFile(null); // Clear success message
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+        setError("Failed to check upload status");
+      }
+    }, 2000); // Poll every 2 seconds
+  };
+
+  const onDrop = async (acceptedFiles: File[]) => {
+    if (acceptedFiles.length === 0) return;
+
+    const file = acceptedFiles[0];
+    if (!file.type.includes("pdf")) {
+      toast({
+        title: "Invalid file type",
+        description: "Only PDF files are supported",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploading(true);
+    setError(null);
+    setProgress(0);
+
+    try {
+      const document = await uploadDocument(file);
+      setProgress(document.progress || 0);
+
+      if (document.status === "completed") {
+        setIsUploading(false);
+        setError(null); // Clear any errors
+        setUploadedFile(document.name);
+        setProgress(100);
         toast({
           title: "Upload successful",
           description: `${document.name} has been uploaded (${document.pages} pages)`,
         });
-
-        // Navigate back to chat after a short delay
-        setTimeout(() => {
-          navigate("/");
-        }, 2000);
-      } catch (err) {
-        clearInterval(progressInterval);
-        const errorMessage = err instanceof Error ? err.message : "Failed to upload file";
-        setError(errorMessage);
+        setTimeout(() => navigate("/"), 2000);
+      } else {
+        // Processing in background - don't show success yet
+        setUploadedFile(null); // Clear any previous success
+        setError(null); // Clear any previous errors
         toast({
-          title: "Upload failed",
-          description: errorMessage,
-          variant: "destructive",
+          title: "Upload started",
+          description: `${document.name} is being processed...`,
         });
-      } finally {
-        setIsUploading(false);
+        startPolling(document.id);
       }
-    },
-    [toast, navigate]
-  );
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to upload file";
+      setUploadedFile(null); // Clear success message
+      setError(errorMessage);
+      setIsUploading(false);
+      toast({
+        title: "Upload failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    }
+  };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -124,18 +180,37 @@ export function UploadDropzone() {
         <Card className="p-6 animate-fade-in">
           <div className="space-y-3">
             <div className="flex items-center gap-3">
-              <FileText className="h-5 w-5 text-primary animate-pulse" />
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
               <div className="flex-1">
-                <p className="text-sm font-medium">Uploading...</p>
+                <p className="text-sm font-medium">Processing document...</p>
+                {uploadedFile && (
+                  <p className="text-xs text-muted-foreground mt-0.5">{uploadedFile}</p>
+                )}
               </div>
-              <span className="text-sm font-mono text-muted-foreground">{progress}%</span>
+              <div className="text-sm font-medium text-muted-foreground min-w-[3rem] text-right">
+                {progress}%
+              </div>
             </div>
             <Progress value={progress} className="h-2" />
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>
+                {progress < 10 
+                  ? "Parsing PDF..." 
+                  : progress < 30 
+                    ? "Summarizing images..." 
+                    : progress < 90 
+                      ? "Summarizing text..." 
+                      : progress < 100
+                        ? "Saving and indexing..."
+                        : "Completed"}
+              </span>
+              <span>{progress}% complete</span>
+            </div>
           </div>
         </Card>
       )}
 
-      {uploadedFile && (
+      {uploadedFile && !isUploading && (
         <Card className="p-6 border-success animate-scale-in bg-success/5">
           <div className="flex items-center gap-3">
             <CheckCircle2 className="h-5 w-5 text-success animate-pulse" />

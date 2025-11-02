@@ -10,6 +10,8 @@ class Document(Base):
     id = Column(String, primary_key=True, index=True)
     name = Column(String, nullable=False)
     pages = Column(Integer, default=0)
+    status = Column(String, default="processing")  # processing, completed, failed
+    progress = Column(Integer, default=0)  # 0-100 percentage
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
