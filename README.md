@@ -25,7 +25,7 @@ This system processes PDF documents to extract text, tables, and images, generat
 ## 🎬 Demo
 
 <p align="center">
-  <a href="demo/demo_video.mp4">
+  <a href="demo/demo.mp4">
     ▶️ <strong>Watch Demo Video</strong>
   </a>
 </p>
