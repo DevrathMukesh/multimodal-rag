@@ -1,0 +1,47 @@
+[tool.poetry]
+name = "multimodal-rag-backend"
+version = "0.1.0"
+description = "FastAPI backend for multimodal RAG"
+authors = ["Your Name <you@example.com>"]
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "0.115.4"
+uvicorn = {version = "0.32.0", extras = ["standard"]}
+pydantic = "2.9.2"
+pydantic-settings = "2.6.1"
+python-multipart = "0.0.9"
+SQLAlchemy = "2.0.35"
+langchain = "0.3.7"
+langchain-community = "0.3.7"
+langchain-ollama = "*"
+langchain-chroma = "*"
+
+chromadb = "0.5.23"
+unstructured = {version = ">=0.16.11,<0.17.0", extras = ["all-docs"]}
+Pillow = "11.0.0"
+tiktoken = "0.8.0"
+python-dotenv = "1.0.1"
+pypdf = "5.0.1"
+openai = "^1.54.0"
+sse-starlette = "2.1.3"
+transformers = "*"
+torch = "*"
+sentence-transformers = "*"
+accelerate = "*"
+safetensors = "*"
+"pdfminer.six" = "20221105"
+pi-heif = "*"
+unstructured_inference = "*"
+pdf2image = "*"
+
+
+[tool.poetry.group.dev.dependencies]
+ipywidgets = "*"
+jupyter = "*"
+peft = "*"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

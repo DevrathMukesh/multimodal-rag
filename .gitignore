@@ -1,0 +1,175 @@
+# =============================================================================
+# Python
+# =============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+.conda/
+
+# PyCharm
+.idea/
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb_checkpoints/
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# =============================================================================
+# Environment Variables & Secrets
+# =============================================================================
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+
+# =============================================================================
+# Database Files
+# =============================================================================
+*.db
+*.sqlite
+*.sqlite3
+backend/data/app.db
+backend/data/app.db-journal
+
+# ChromaDB
+backend/chroma_db/
+chroma_db/
+
+# =============================================================================
+# Application Data
+# =============================================================================
+# Uploaded PDFs and processed data
+backend/data/uploads/
+data/uploads/
+
+# Logs
+backend/data/logs/
+data/logs/
+*.log
+logs/
+
+# Parents index
+backend/data/parents_index/
+data/parents_index/
+
+# =============================================================================
+# Node.js / Frontend
+# =============================================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Build outputs
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.local
+
+# Frontend environment
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+
+# =============================================================================
+# OS Files
+# =============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*~
+
+# =============================================================================
+# Testing & Coverage
+# =============================================================================
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# =============================================================================
+# Poetry
+# =============================================================================
+poetry.lock
+# Uncomment if you want to ignore poetry.lock
+# poetry.lock
+
+# =============================================================================
+# Temporary Files
+# =============================================================================
+*.tmp
+*.temp
+*.swp
+*.swo
+*.bak
+*.backup
+
+# =============================================================================
+# Model Files (Large files - uncomment if needed)
+# =============================================================================
+# *.bin
+# *.safetensors
+# *.h5
+# *.ckpt
+# *.pth
+
+# =============================================================================
+# Project Specific
+# =============================================================================
+# Keep .env.example but ignore .env
+.env
+!.env.example
+backend/.env
+!backend/.env.example
+
+# Content directory (optional - remove if you want to track PDFs)
+# backend/content/*.pdf

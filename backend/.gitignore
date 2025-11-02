@@ -1,0 +1,37 @@
+# Backend-specific .gitignore
+# Most ignores are in the root .gitignore, but here are backend-specific ones:
+
+# Environment files
+.env
+.env.local
+
+# Database
+data/app.db
+data/app.db-journal
+chroma_db/
+
+# Application data
+data/uploads/
+data/logs/
+data/parents_index/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
