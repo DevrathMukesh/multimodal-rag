@@ -26,11 +26,10 @@ This system processes PDF documents to extract text, tables, and images, generat
 
 ### Application Demo Video
 
-**📹 [Click here to watch the demo video](demo/demo.mp4)**
-
-*The video will open in your browser for playback.*
-
-> 💡 **Note:** GitHub's README doesn't support embedded videos. For inline playback, visit the [GitHub Pages demo site](https://devrathmukesh.github.io/multimodal-rag/) (if enabled) or download the video directly.
+<video width="100%" controls>
+  <source src="demo/demo.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
 
 ### Rate Limiting Feature
 
