@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multimodal RAG - Demo</title>
+    <meta name="description" content="Multimodal RAG System - Demo Video and Documentation">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #24292e;
+            background-color: #ffffff;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 40px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #0366d6;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #586069;
+            margin-bottom: 30px;
+        }
+        .video-container {
+            position: relative;
+            width: 100%;
+            max-width: 900px;
+            margin: 30px auto;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        video {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #0366d6;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        .info {
+            background: #f6f8fa;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+        .info p {
+            margin: 5px 0;
+            color: #586069;
+        }
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: #0d1117;
+                color: #c9d1d9;
+            }
+            .container {
+                background: #161b22;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            }
+            h1 {
+                color: #58a6ff;
+            }
+            .subtitle {
+                color: #8b949e;
+            }
+            .info {
+                background: #161b22;
+                border-color: #30363d;
+            }
+            .info p {
+                color: #8b949e;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 Multimodal RAG - Demo Video</h1>
+        <p class="subtitle">Watch the application demonstration</p>
+        
+        <div class="video-container">
+            <video width="100%" controls poster="">
+                <source src="../demo/demo.mp4" type="video/mp4">
+                Your browser does not support the video tag.
+                <a href="../demo/demo.mp4">Download the video</a> instead.
+            </video>
+        </div>
+        
+        <div class="info">
+            <p><strong>About this demo:</strong> This video demonstrates the Multimodal RAG system's capabilities including PDF processing, document upload, chat interface, and rate limiting features.</p>
+            <p><strong>Features shown:</strong> Document upload, multimodal extraction (text/tables/images), semantic search, streaming responses, and intelligent rate limit handling.</p>
+        </div>
+        
+        <a href="https://github.com/DevrathMukesh/multimodal-rag" class="back-link">← Back to GitHub Repository</a>
+    </div>
+</body>
+</html>
+
