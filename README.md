@@ -26,10 +26,14 @@ This system processes PDF documents to extract text, tables, and images, generat
 
 ### Application Demo Video
 
-<video width="100%" controls>
-  <source src="demo/demo.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
+**📹 [Watch Demo Video](demo/demo.mp4)** (Click to download/play)
+
+> **Why videos don't show inline on GitHub:** GitHub Markdown doesn't support HTML `<video>` tags for security reasons. The video file is available via direct download link above.
+>
+> **Better alternatives for GitHub READMEs:**
+> 1. **Convert to GIF** - Create `demo.gif` from your video for inline display
+> 2. **Add thumbnail** - Create `demo-thumbnail.png` and use: `[![Demo](demo/demo-thumbnail.png)](demo/demo.mp4)`
+> 3. **Host externally** - Upload to YouTube/Vimeo and embed the link
 
 ### Rate Limiting Feature
 
