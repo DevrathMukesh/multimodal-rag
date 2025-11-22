@@ -6,6 +6,7 @@ import logging
 
 from unstructured.partition.pdf import partition_pdf
 
+from app.core.config import settings
 from app.utils.file import save_json
 
 
@@ -13,14 +14,19 @@ def extract_elements(file_path: str) -> Dict[str, List[Any]]:
     """Extract text, tables, and images from a PDF using unstructured.
 
     Returns a dict with raw unstructured elements.
+    When use_ollama_embeddings=False, images are skipped (text-only mode).
     """
-    logging.info("Partitioning PDF: %s", file_path)
+    logging.info("Partitioning PDF: %s (Ollama embeddings: %s)", file_path, settings.use_ollama_embeddings)
+    
+    # Only extract images if Ollama embeddings are enabled
+    extract_images = settings.use_ollama_embeddings
+    
     chunks = partition_pdf(
         filename=file_path,
         infer_table_structure=True,
         strategy="hi_res",
-        extract_image_block_types=["Image"],
-        extract_image_block_to_payload=True,
+        extract_image_block_types=["Image"] if extract_images else [],
+        extract_image_block_to_payload=extract_images,
         chunking_strategy="by_title",
         max_characters=10000,
         combine_text_under_n_chars=2000,
@@ -37,17 +43,21 @@ def extract_elements(file_path: str) -> Dict[str, List[Any]]:
             texts.append(chunk)
 
     # Extract images (base64 with page number/source if present)
+    # Only if Ollama embeddings are enabled
     images: List[Dict[str, Any]] = []
-    for chunk in chunks:
-        if "CompositeElement" in str(type(chunk)):
-            chunk_els = chunk.metadata.orig_elements
-            for el in chunk_els:
-                if "Image" in str(type(el)):
-                    images.append({
-                        "b64": getattr(el.metadata, "image_base64", None),
-                        "page_number": getattr(el.metadata, "page_number", getattr(chunk.metadata, "page_number", None)),
-                        "source": getattr(chunk.metadata, "filename", os.path.basename(file_path)),
-                    })
+    if extract_images:
+        for chunk in chunks:
+            if "CompositeElement" in str(type(chunk)):
+                chunk_els = chunk.metadata.orig_elements
+                for el in chunk_els:
+                    if "Image" in str(type(el)):
+                        images.append({
+                            "b64": getattr(el.metadata, "image_base64", None),
+                            "page_number": getattr(el.metadata, "page_number", getattr(chunk.metadata, "page_number", None)),
+                            "source": getattr(chunk.metadata, "filename", os.path.basename(file_path)),
+                        })
+    else:
+        logging.info("Image extraction skipped (Ollama embeddings disabled - text-only mode)")
 
     logging.info("Partitioned PDF into texts=%d tables=%d images=%d", len(texts), len(tables), len(images))
     return {"texts": texts, "tables": tables, "images": images}

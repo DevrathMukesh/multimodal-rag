@@ -471,17 +471,27 @@ def build_summaries(parents: Dict[str, List[Dict[str, Any]]], progress_callback=
     - Images and text/tables share the 10-80% range proportionally
     - Each chunk (image or text/table) gets equal weight in progress
     - Progress updates after each chunk is completed
+    - When Ollama embeddings are disabled, images are skipped
     
     Args:
         parents: Dictionary with 'images', 'texts', 'tables' keys
         progress_callback: Optional function(progress: int) to call with progress updates (0-100)
     """
+    from app.core.config import settings
+    
     # Progress range is 10-80% (70% total)
     PROGRESS_START = 10
     PROGRESS_END = 80
     
-    images = parents.get("images", [])
-    images_b64 = [img.get("b64") for img in images if img.get("b64")]
+    # Skip images if Ollama embeddings are disabled
+    if settings.use_ollama_embeddings:
+        images = parents.get("images", [])
+        images_b64 = [img.get("b64") for img in images if img.get("b64")]
+    else:
+        logging.info("Image summarization skipped (Ollama embeddings disabled - text-only mode)")
+        images = []
+        images_b64 = []
+    
     text_and_tables = parents.get("texts", []) + parents.get("tables", [])
     
     total_chunks = len(images_b64) + len(text_and_tables)
@@ -504,8 +514,8 @@ def build_summaries(parents: Dict[str, List[Dict[str, Any]]], progress_callback=
     else:
         images_end_progress = PROGRESS_START
     
-    # Summarize images first (10% to images_end_progress)
-    if images_b64:
+    # Summarize images first (10% to images_end_progress) - only if Ollama is enabled
+    if images_b64 and settings.use_ollama_embeddings:
         logging.info("Starting image summarization (%d images)...", len(images_b64))
         image_summaries = summarize_images(
             images_b64, 
@@ -516,6 +526,9 @@ def build_summaries(parents: Dict[str, List[Dict[str, Any]]], progress_callback=
         logging.info("Image summarization completed (progress: %d%%)", images_end_progress)
     else:
         image_summaries = []
+        # If no images, start text/tables immediately
+        if images_count == 0:
+            images_end_progress = PROGRESS_START
     
     # Summarize text/tables (images_end_progress to 80%)
     if text_and_tables:

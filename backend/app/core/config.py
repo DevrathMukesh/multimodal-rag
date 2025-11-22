@@ -35,64 +35,53 @@ class Settings(BaseSettings):
         extra="ignore",
         env_prefix="",  # Don't add any prefix
         case_sensitive=False,  # Case insensitive for env vars
+        env_ignore_empty=True,
     )
     api_v1_str: str = "/api"
 
-    # CORS - defaults are set, can override via CORS_ALLOW_ORIGINS env var (comma-separated)
+    # CORS Configuration
     cors_allow_origins: List[str] = Field(
         default=[
-            "http://localhost:5173",  # Vite default & Docker frontend port
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
             "http://localhost:3000",
-            "http://localhost:8080",  # Vite fallback
-            "http://127.0.0.1:5173",  # Alternative localhost format
             "http://127.0.0.1:3000",
-            "http://127.0.0.1:8080",
-            "http://frontend:80",  # Docker internal frontend
-        ]
+        ],
     )
-    
-    @model_validator(mode="before")
-    @classmethod
-    def parse_cors_from_env(cls, data: Union[dict, type]) -> dict:
-        """Parse CORS_ALLOW_ORIGINS from environment if provided as comma-separated string."""
-        if isinstance(data, dict):
-            cors_value = data.get("cors_allow_origins") or os.getenv("CORS_ALLOW_ORIGINS")
-            if cors_value and isinstance(cors_value, str):
-                # Split comma-separated string into list
-                data["cors_allow_origins"] = [x.strip() for x in cors_value.split(",") if x.strip()]
-        return data
+    cors_allow_all: bool = Field(default=False)
 
-    # Paths
+    # Paths (computed, not from .env)
     base_dir: str = Field(default_factory=lambda: os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
     data_dir: str = Field(default_factory=lambda: os.path.join(os.getcwd(), "data"))
     uploads_dir: str = Field(default_factory=lambda: os.path.join(os.getcwd(), "data", "uploads"))
     chroma_dir: str = Field(default_factory=lambda: os.path.join(os.getcwd(), "chroma_db"))
 
-    # Ollama configuration
-    ollama_base_url: str = "http://localhost:11434"
+    # Embedding Provider Configuration
+    use_ollama_embeddings: bool = Field(default=True)
+    ollama_base_url: str = Field(default="http://localhost:11434")
+    embedding_model_id: str = Field(default="embeddinggemma:latest")
 
-    # Google Gemini API configuration
+    # Google Gemini API Configuration
     google_api_key: str = Field(default="")
-    
-    # Gemini model names (set in .env)
     chat_model_id: str = Field(default="gemini-2.0-flash")
     text_summarizer_model_id: str = Field(default="gemini-2.0-flash")
-    image_summarizer_model_id: str = Field(default="gemini-2.0-flash")  # Vision-capable model
-    
-    # Ollama model names (for embedding only, kept for compatibility)
-    embedding_model_id: str = "embeddinggemma:latest"
+    image_summarizer_model_id: str = Field(default="gemini-2.0-flash")
+    embedding_api_model_id: str = Field(default="models/text-embedding-004")
 
-    # Concurrency knobs
-    text_summarizer_max_workers: int = 4
-
-    # Upload constraints
-    max_upload_mb: int = 25
-    allowed_mime_types: List[str] = ["application/pdf"]
+    # Performance & Limits
+    text_summarizer_max_workers: int = Field(default=4)
+    max_upload_mb: int = Field(default=25)
+    allowed_mime_types: List[str] = Field(default=["application/pdf"])
 
     # (Inner Config not needed with model_config in pydantic v2)
 
 
 settings = Settings()
+
+# Handle CORS_ALLOW_ALL from .env (simpler than parsing CORS_ALLOW_ORIGINS=*)
+if os.getenv("CORS_ALLOW_ALL", "").lower() in ("true", "1", "yes"):
+    settings.cors_allow_all = True
+    settings.cors_allow_origins = ["*"]
 
 # Debug: Log if API key is missing (only log first time to avoid spam)
 if not settings.google_api_key:

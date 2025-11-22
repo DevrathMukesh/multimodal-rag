@@ -3,14 +3,18 @@ from __future__ import annotations
 import os
 import uuid
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
 
 import chromadb
-from langchain_ollama import OllamaEmbeddings
 from langchain_chroma import Chroma
 
 from app.core.config import settings
 from app.utils.file import load_json, save_json
+
+# Lazy imports for embedding providers (only import when needed)
+if TYPE_CHECKING:
+    from langchain_ollama import OllamaEmbeddings
+    from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
 
 def _parents_index_dir() -> str:
@@ -35,13 +39,47 @@ def _save_parents_index(doc_id: str, index: Dict[str, Any]) -> None:
     save_json(path, index)
 
 
+def _get_embeddings() -> Any:
+    """Get the appropriate embedding function based on configuration."""
+    if settings.use_ollama_embeddings:
+        try:
+            from langchain_ollama import OllamaEmbeddings
+        except ImportError:
+            raise ImportError(
+                "langchain-ollama is not installed. "
+                "Install it with: pip install langchain-ollama "
+                "or: poetry add langchain-ollama"
+            )
+        logging.info("Using Ollama embeddings: %s at %s", settings.embedding_model_id, settings.ollama_base_url)
+        return OllamaEmbeddings(
+            model=settings.embedding_model_id,
+            base_url=settings.ollama_base_url,
+        )
+    else:
+        try:
+            from langchain_google_genai import GoogleGenerativeAIEmbeddings
+        except ImportError:
+            raise ImportError(
+                "langchain-google-genai is not installed. "
+                "Install it with: pip install langchain-google-genai "
+                "or: poetry add langchain-google-genai"
+            )
+        logging.info("Using Google Gemini embeddings API: %s", settings.embedding_api_model_id)
+        if not settings.google_api_key:
+            raise ValueError(
+                "GOOGLE_API_KEY is required when using API embeddings. "
+                "Set USE_OLLAMA_EMBEDDINGS=true to use local Ollama embeddings instead."
+            )
+        return GoogleGenerativeAIEmbeddings(
+            model=settings.embedding_api_model_id,
+            google_api_key=settings.google_api_key,
+        )
+
+
 def _get_vectorstore() -> Chroma:
     """Get or create the ChromaDB vectorstore."""
     client = chromadb.PersistentClient(path=settings.chroma_dir)
-    embeddings = OllamaEmbeddings(
-        model=settings.embedding_model_id,
-        base_url=settings.ollama_base_url,
-    )
+    embeddings = _get_embeddings()
     
     collection_name = "multi_modal_rag"
     

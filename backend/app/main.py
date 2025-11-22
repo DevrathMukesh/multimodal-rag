@@ -22,13 +22,20 @@ import sys
 def create_app() -> FastAPI:
     app = FastAPI(title="Multimodal RAG Backend", version="0.1.0")
 
+    # CORS configuration
+    cors_origins = ["*"] if settings.cors_allow_all else settings.cors_allow_origins
+    if settings.cors_allow_all:
+        logging.info("CORS: Allowing all origins (*)")
+    else:
+        logging.info("CORS: Allowing origins: %s", cors_origins)
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors_allow_origins,
+        allow_origins=cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
-        expose_headers=["*"],  # Expose all headers for SSE and other responses
+        expose_headers=["*"],
     )
 
     app.include_router(api_router_v1, prefix="/api")
@@ -108,21 +115,63 @@ def on_startup() -> None:
     init_directories()
     init_db()
 
-    # Check Ollama connection first, auto-start if not running
-    ollama_available = check_ollama_connection()
-    if not ollama_available:
-        logging.info("Ollama server is not running. Attempting to start automatically...")
-        ollama_available = start_ollama_server()
+    # Display configuration
+    logging.info("\n" + "="*70)
+    logging.info("CONFIGURATION")
+    logging.info("="*70)
+    logging.info("CORS Origins: %s", settings.cors_allow_origins)
+    logging.info("="*70 + "\n")
+    
+    # Display embedding provider configuration
+    logging.info("EMBEDDING PROVIDER CONFIGURATION")
+    logging.info("="*70)
+    
+    if settings.use_ollama_embeddings:
+        logging.info("🔧 Provider: OLLAMA (Local Embeddings)")
+        logging.info("   Model: %s", settings.embedding_model_id)
+        logging.info("   URL: %s", settings.ollama_base_url)
+        logging.info("   Mode: MULTIMODAL (Text + Tables + Images)")
         
+        # Check Ollama connection first, auto-start if not running
+        ollama_available = check_ollama_connection()
         if not ollama_available:
-            logging.error(
-                "\n" + "="*70 + "\n"
-                "WARNING: Could not start Ollama server automatically!\n"
-                "Please start Ollama manually by running: ollama serve\n"
-                "Or ensure Ollama is installed and available in your PATH.\n"
-                "The application will continue but model operations will fail.\n"
-                + "="*70 + "\n"
-            )
+            logging.info("Ollama server is not running. Attempting to start automatically...")
+            ollama_available = start_ollama_server()
+            
+            if not ollama_available:
+                logging.error(
+                    "\n" + "="*70 + "\n"
+                    "WARNING: Could not start Ollama server automatically!\n"
+                    "Please start Ollama manually by running: ollama serve\n"
+                    "Or ensure Ollama is installed and available in your PATH.\n"
+                    "The application will continue but model operations will fail.\n"
+                    + "="*70 + "\n"
+                )
+            else:
+                logging.info("✓ Ollama server is ready")
+        else:
+            logging.info("✓ Ollama server is ready")
+    else:
+        logging.info("🔧 Provider: GOOGLE GEMINI API (Serverless Embeddings)")
+        logging.info("   Model: %s", settings.embedding_api_model_id)
+        logging.info("   Mode: TEXT-ONLY (Text + Tables, Images disabled)")
+        if settings.google_api_key:
+            logging.info("   API Key: ✓ Set")
+        else:
+            logging.warning("   API Key: ✗ NOT SET - Embedding operations will fail!")
+    
+    logging.info("="*70 + "\n")
+
+    # Display LLM models configuration
+    logging.info("LLM MODELS CONFIGURATION")
+    logging.info("="*70)
+    logging.info("   Chat Model: %s", settings.chat_model_id)
+    logging.info("   Text Summarizer: %s", settings.text_summarizer_model_id)
+    if settings.use_ollama_embeddings:
+        logging.info("   Image Summarizer: %s", settings.image_summarizer_model_id)
+    else:
+        logging.info("   Image Summarizer: DISABLED (text-only mode)")
+    logging.info("="*70 + "\n")
 
     # Warm-up LLM models to avoid first-request latency
     try:
@@ -130,15 +179,24 @@ def on_startup() -> None:
         logging.info("✓ Text summarizer model warm-up successful")
     except Exception as e:
         logging.warning("Text summarizer model warm-up failed: %s", e)
-    try:
-        get_image_summarizer_llm()
-        logging.info("✓ Image summarizer model warm-up successful")
-    except Exception as e:
-        logging.warning("Image summarizer model warm-up failed: %s", e)
+    
+    if settings.use_ollama_embeddings:
+        try:
+            get_image_summarizer_llm()
+            logging.info("✓ Image summarizer model warm-up successful")
+        except Exception as e:
+            logging.warning("Image summarizer model warm-up failed: %s", e)
+    else:
+        logging.info("⏭️  Image summarizer warm-up skipped (text-only mode)")
+    
     try:
         get_chat_llm()
         logging.info("✓ Chat model warm-up successful")
     except Exception as e:
         logging.warning("Chat model warm-up failed: %s", e)
+    
+    logging.info("\n" + "="*70)
+    logging.info("🚀 Application startup complete!")
+    logging.info("="*70 + "\n")
 
 

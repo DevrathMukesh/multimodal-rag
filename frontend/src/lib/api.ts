@@ -2,6 +2,12 @@ import { Document, Source, Message } from "@/types";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 
+// Debug: Log API base URL
+console.log("🔧 API Configuration:");
+console.log("  VITE_API_BASE (env):", import.meta.env.VITE_API_BASE);
+console.log("  API_BASE (used):", API_BASE);
+console.log("  Current origin:", window.location.origin);
+
 export class ApiError extends Error {
   constructor(
     public status: number,

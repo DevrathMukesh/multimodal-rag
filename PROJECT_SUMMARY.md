@@ -21,6 +21,211 @@ Multimodal RAG system that processes PDFs (text, tables, images) and enables nat
 - **LLM**: Google Gemini API
 - **Frontend**: React, TypeScript, Vite, Tailwind CSS, shadcn/ui
 
+## Libraries and Their Purposes
+
+### Backend Libraries
+
+#### Core Framework & Web
+- **FastAPI (0.115.4)**: Web framework for building REST API endpoints
+- **Uvicorn (0.32.0)**: ASGI server for running FastAPI application
+- **python-multipart (0.0.9)**: Handle file uploads (PDF files)
+
+#### Data & Database
+- **SQLAlchemy (2.0.35)**: ORM for managing SQLite database (documents, messages, sessions)
+- **ChromaDB (0.5.23)**: Vector database for storing and querying embeddings
+- **pypdf (5.0.1)**: PDF manipulation library (reading page count)
+
+#### AI & ML Libraries
+- **LangChain (0.3.7)**: Core framework for LLM orchestration and chains
+- **langchain-community (0.3.7)**: Community integrations for LangChain
+- **langchain-ollama**: Ollama integration for local embeddings
+- **langchain-chroma**: ChromaDB integration for vector store
+- **langchain-google-genai**: Google Gemini integration for chat and summarization
+- **transformers**: Hugging Face transformers (for embeddings if needed)
+- **torch**: PyTorch (ML framework, used by transformers)
+- **sentence-transformers**: Sentence embedding models
+- **accelerate**: Hugging Face acceleration library
+- **safetensors**: Safe tensor serialization
+- **tiktoken (0.8.0)**: Token counting for text chunks
+
+#### PDF Processing
+- **unstructured (>=0.16.11,<0.17.0)**: PDF parsing and extraction (text, tables, images)
+- **unstructured_inference**: ML models for document understanding
+- **pdf2image**: Convert PDF pages to images
+- **pdfminer.six (20221105)**: PDF text extraction backend
+- **pi-heif**: HEIF image format support
+- **Pillow (11.0.0)**: Image processing and manipulation
+
+#### Configuration & Utilities
+- **pydantic (2.9.2)**: Data validation and settings management
+- **pydantic-settings (2.6.1)**: Settings management from environment variables
+- **python-dotenv (1.0.1)**: Load environment variables from `.env` files
+- **sse-starlette (2.1.3)**: Server-Sent Events for streaming responses
+
+#### OpenAI (Optional)
+- **openai (^1.54.0)**: OpenAI API client (if needed for alternative models)
+
+### Frontend Libraries
+
+#### Core Framework
+- **React (^18.3.1)**: UI framework
+- **React DOM (^18.3.1)**: React rendering
+- **TypeScript (^5.8.3)**: Type-safe JavaScript
+
+#### Routing & State
+- **react-router-dom (^6.30.1)**: Client-side routing
+- **@tanstack/react-query (^5.83.0)**: Data fetching and caching
+
+#### UI Components
+- **shadcn/ui** (via Radix UI primitives):
+  - `@radix-ui/react-*`: Accessible UI primitives (dialogs, dropdowns, tabs, etc.)
+- **lucide-react (^0.462.0)**: Icon library
+- **react-markdown (^10.1.0)**: Markdown rendering
+- **remark-gfm (^4.0.1)**: GitHub Flavored Markdown support
+
+#### Forms & Validation
+- **react-hook-form (^7.61.1)**: Form state management
+- **@hookform/resolvers (^3.10.0)**: Form validation resolvers
+- **zod (^3.25.76)**: Schema validation
+
+#### Styling
+- **Tailwind CSS (^3.4.17)**: Utility-first CSS framework
+- **tailwindcss-animate (^1.0.7)**: Animation utilities
+- **@tailwindcss/typography (^0.5.16)**: Typography plugin
+- **tailwind-merge (^2.6.0)**: Merge Tailwind classes
+- **clsx (^2.1.1)**: Conditional class names
+- **class-variance-authority (^0.7.1)**: Component variants
+
+#### Utilities
+- **next-themes (^0.3.0)**: Dark/light theme switching
+- **date-fns (^3.6.0)**: Date formatting
+- **react-dropzone (^14.3.8)**: File drag-and-drop
+- **sonner (^1.7.4)**: Toast notifications
+
+#### Build Tools
+- **Vite (^5.4.19)**: Build tool and dev server
+- **@vitejs/plugin-react-swc (^3.11.0)**: Fast React refresh
+- **ESLint**: Code linting
+- **PostCSS**: CSS processing
+- **Autoprefixer**: CSS vendor prefixing
+
+## Models and Their Usage
+
+### Google Gemini Models
+
+#### 1. **gemini-2.0-flash** (Chat Model)
+- **Purpose**: Conversational AI and question answering
+- **Usage**: Main chat interface for user queries
+- **Configuration**: 
+  - Temperature: `0.7` (balanced creativity/accuracy)
+  - Used in: `llm_service.get_chat_llm()`, `rag_service.answer_question()`
+- **Features**: Streaming support for real-time responses
+
+#### 2. **gemini-2.0-flash** (Text Summarizer)
+- **Purpose**: Summarize text and table content from PDFs
+- **Usage**: Generate concise summaries of document chunks
+- **Configuration**:
+  - Temperature: `0.3` (more focused, factual)
+  - Used in: `summary_service.summarize_texts()`
+- **Features**: Special handling for title pages (preserves metadata)
+
+#### 3. **gemini-2.0-flash** (Image Summarizer)
+- **Purpose**: Analyze and describe images extracted from PDFs
+- **Usage**: Generate text descriptions of images for vector search
+- **Configuration**:
+  - Temperature: `0.3` (accurate descriptions)
+  - Used in: `summary_service.summarize_images()`
+- **Features**: Vision capabilities, processes images sequentially to avoid rate limits
+
+### Ollama Models
+
+#### 1. **embeddinggemma:latest** (Embedding Model)
+- **Purpose**: Generate vector embeddings for semantic search
+- **Usage**: Embed summaries and query text for ChromaDB
+- **Configuration**: Local model via Ollama API
+- **Features**: 
+  - Runs locally (no external API costs)
+  - ~621MB model size
+  - Used in: `vector_service` for indexing and retrieval
+
+## LangChain Components Used
+
+### LangChain Core (`langchain_core`)
+
+#### 1. **ChatPromptTemplate**
+- **Purpose**: Build structured prompts for LLMs
+- **Usage**: 
+  - `summary_service.py`: Create prompts for text/image summarization
+  - `rag_service.py`: Build RAG prompts with context and conversation history
+- **Features**: Template-based prompt construction with variable substitution
+
+#### 2. **HumanMessage**
+- **Purpose**: Represent user messages in chat format
+- **Usage**: 
+  - `summary_service.py`: Send content to Gemini for summarization
+  - `rag_service.py`: Format user questions with context
+- **Features**: Part of LangChain message system
+
+#### 3. **StrOutputParser**
+- **Purpose**: Parse LLM output as plain text
+- **Usage**: Extract text from LLM responses (summaries, answers)
+- **Features**: Simple string extraction from structured LLM responses
+
+#### 4. **Document**
+- **Purpose**: Standard document format for LangChain
+- **Usage**: `vector_service.py` - Convert data to LangChain Document format for ChromaDB
+
+### LangChain Integrations
+
+#### 1. **ChatGoogleGenerativeAI** (`langchain_google_genai`)
+- **Purpose**: Google Gemini LLM integration
+- **Usage**: 
+  - Chat: `llm_service.get_chat_llm()`, `get_chat_llm_streaming()`
+  - Summarization: `llm_service.get_text_summarizer_llm()`, `get_image_summarizer_llm()`
+- **Features**: 
+  - Streaming support (`astream()`)
+  - Temperature control
+  - Vision capabilities for images
+
+#### 2. **OllamaEmbeddings** (`langchain_ollama`)
+- **Purpose**: Generate embeddings using Ollama models
+- **Usage**: `vector_service.py` - Create embeddings for summaries and queries
+- **Configuration**: Connects to local Ollama instance
+- **Features**: Local embedding generation
+
+#### 3. **Chroma** (`langchain_chroma`)
+- **Purpose**: ChromaDB vector store integration
+- **Usage**: `vector_service.py` - Store and retrieve embeddings
+- **Features**:
+  - Multi-vector indexing (children summaries → parent content)
+  - Similarity search with metadata filtering
+  - Document retrieval with sources
+
+### LangChain Patterns Used
+
+#### 1. **Chain Composition** (`prompt | llm | parser`)
+- **Pattern**: `ChatPromptTemplate | LLM | StrOutputParser`
+- **Usage**: 
+  - Summary generation chains
+  - RAG answer generation chains
+- **Benefits**: Modular, composable, easy to test
+
+#### 2. **Retrieval-Augmented Generation (RAG)**
+- **Flow**: Query → Embed → Vector Search → Retrieve Context → Generate Answer
+- **Implementation**: `rag_service.py` orchestrates the full RAG pipeline
+- **Features**: 
+  - Context injection from retrieved documents
+  - Conversation history integration
+  - Source citation generation
+
+#### 3. **Multi-Vector Retrieval**
+- **Pattern**: Store summaries (children) for search, retrieve original content (parents)
+- **Implementation**: `vector_service.py` uses parent-child mapping
+- **Benefits**: 
+  - Better search with summaries
+  - Full context retrieval from original content
+  - Efficient storage and retrieval
+
 ## Core Services
 
 ### PDF Service
