@@ -1,10 +1,18 @@
 # Usage:
 #   Production: docker-compose up -d
 #   Development (hot reload): docker-compose --profile dev up -d
+#
+# Ollama Toggle (via .env):
+#   - Set USE_OLLAMA_EMBEDDINGS=true  → Ollama starts and downloads model (multimodal)
+#   - Set USE_OLLAMA_EMBEDDINGS=false → Ollama does NOT start (text-only, serverless)
+#   Note: When OFF, Ollama container won't start, saving resources and startup time
 
 services:
-  # Ollama service for embeddings
+  # Ollama service for embeddings (only starts when USE_OLLAMA_EMBEDDINGS=true)
+  # To disable: Set USE_OLLAMA_EMBEDDINGS=false in .env
   ollama:
+    profiles:
+      - ollama  # Only start when explicitly enabled
     image: ollama/ollama:latest
     container_name: multimodal-rag-ollama
     volumes:
@@ -22,7 +30,10 @@ services:
       - rag-network
 
   # Init service: Automatically pull embedding model after Ollama is ready
+  # Only runs when Ollama service is enabled (USE_OLLAMA_EMBEDDINGS=true)
   ollama-init:
+    profiles:
+      - ollama  # Only start when Ollama is enabled
     image: curlimages/curl:latest
     container_name: multimodal-rag-ollama-init
     depends_on:
@@ -74,16 +85,23 @@ services:
       - CHAT_MODEL_ID=${CHAT_MODEL_ID:-gemini-2.0-flash}
       - TEXT_SUMMARIZER_MODEL_ID=${TEXT_SUMMARIZER_MODEL_ID:-gemini-2.0-flash}
       - IMAGE_SUMMARIZER_MODEL_ID=${IMAGE_SUMMARIZER_MODEL_ID:-gemini-2.0-flash}
+      - EMBEDDING_API_MODEL_ID=${EMBEDDING_API_MODEL_ID:-models/text-embedding-004}
+      - USE_OLLAMA_EMBEDDINGS=${USE_OLLAMA_EMBEDDINGS:-true}
       - OLLAMA_BASE_URL=http://ollama:11434
       - EMBEDDING_MODEL_ID=${EMBEDDING_MODEL_ID:-embeddinggemma:latest}
+      - CORS_ALLOW_ALL=${CORS_ALLOW_ALL:-true}
       - DATABASE_URL=sqlite:///./data/app.db
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - TEXT_SUMMARIZER_MAX_WORKERS=${TEXT_SUMMARIZER_MAX_WORKERS:-4}
       - MAX_UPLOAD_MB=${MAX_UPLOAD_MB:-25}
-      # Note: CORS origins are configured in app/core/config.py (defaults include localhost:5173, localhost:3000, etc.)
+    # Backend works with or without Ollama based on USE_OLLAMA_EMBEDDINGS env var
+    # When USE_OLLAMA_EMBEDDINGS=false, backend uses Google Gemini API embeddings
+    # Note: Ollama is in a profile, so depends_on only matters when profile is active
+    # Backend code checks USE_OLLAMA_EMBEDDINGS before connecting, so it's safe
     depends_on:
       ollama:
         condition: service_healthy
+        required: false
     restart: unless-stopped
     networks:
       - rag-network
@@ -117,15 +135,24 @@ services:
       - CHAT_MODEL_ID=${CHAT_MODEL_ID:-gemini-2.0-flash}
       - TEXT_SUMMARIZER_MODEL_ID=${TEXT_SUMMARIZER_MODEL_ID:-gemini-2.0-flash}
       - IMAGE_SUMMARIZER_MODEL_ID=${IMAGE_SUMMARIZER_MODEL_ID:-gemini-2.0-flash}
+      - EMBEDDING_API_MODEL_ID=${EMBEDDING_API_MODEL_ID:-models/text-embedding-004}
+      - USE_OLLAMA_EMBEDDINGS=${USE_OLLAMA_EMBEDDINGS:-true}
       - OLLAMA_BASE_URL=http://ollama:11434
       - EMBEDDING_MODEL_ID=${EMBEDDING_MODEL_ID:-embeddinggemma:latest}
+      - CORS_ALLOW_ALL=${CORS_ALLOW_ALL:-true}
       - DATABASE_URL=sqlite:///./data/app.db
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - CORS_ALLOW_ORIGINS=http://localhost:5173,http://localhost:3000,http://localhost:8080
+      - TEXT_SUMMARIZER_MAX_WORKERS=${TEXT_SUMMARIZER_MAX_WORKERS:-4}
+      - MAX_UPLOAD_MB=${MAX_UPLOAD_MB:-25}
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    # Backend works with or without Ollama based on USE_OLLAMA_EMBEDDINGS env var
+    # When USE_OLLAMA_EMBEDDINGS=false, backend uses Google Gemini API embeddings
+    # Note: Ollama is in a profile, so depends_on only matters when profile is active
+    # Backend code checks USE_OLLAMA_EMBEDDINGS before connecting, so it's safe
     depends_on:
       ollama:
         condition: service_healthy
+        required: false
     restart: unless-stopped
     networks:
       - rag-network

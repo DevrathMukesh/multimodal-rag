@@ -87,19 +87,41 @@ The easiest way to run the entire system with all dependencies:
 
 3. **Start Everything**
    
-   Start Docker containers (choose ONE mode). The embedding model will be automatically pulled on first startup:
-   ```bash
-   # Production mode (recommended)
-   docker-compose up -d
+   Start Docker containers based on your `.env` setting:
    
-   # OR Development mode (with hot reload for backend/frontend)
+   **With Ollama (Multimodal - Default):**
+   ```bash
+   # If USE_OLLAMA_EMBEDDINGS=true in .env
+   docker-compose --profile ollama up -d
+   ```
+   - Ollama container starts
+   - Model downloads (~621 MB on first run, takes 2-5 minutes)
+   - Supports: text + tables + images
+   
+   **Without Ollama (Text-Only - Serverless):**
+   ```bash
+   # If USE_OLLAMA_EMBEDDINGS=false in .env
+   docker-compose up -d
+   ```
+   - Ollama container does NOT start (saves resources!)
+   - No model download
+   - Uses Google Gemini API embeddings
+   - Supports: text + tables only
+   
+   **Development Mode (with hot reload):**
+   ```bash
+   # With Ollama
+   docker-compose --profile dev --profile ollama up -d
+   
+   # Without Ollama
    docker-compose --profile dev up -d
    ```
    
    **Note:** 
-   - The first startup may take 2-5 minutes as it downloads the embedding model (~621 MB). You can monitor progress with `docker logs multimodal-rag-ollama-init`
-   - Subsequent startups will be much faster since the model is cached in the `ollama-data` volume
-   - If you need to manually pull/update the model later: `docker exec multimodal-rag-ollama ollama pull embeddinggemma:latest`
+   - When `USE_OLLAMA_EMBEDDINGS=true`, the first startup downloads the embedding model (~621 MB)
+   - Monitor progress: `docker logs multimodal-rag-ollama-init`
+   - Model is cached in `ollama-data` volume for faster subsequent startups
+   - When `USE_OLLAMA_EMBEDDINGS=false`, Ollama doesn't start at all, saving resources
 
 4. **Access the Application**
    - Frontend: http://localhost:5173
@@ -153,18 +175,23 @@ For development without Docker (requires manual installation of system dependenc
    ```bash
    cd backend
    
-   # Using Poetry (recommended)
-   poetry install --no-root
+   # Using conda (recommended for this project)
+   conda activate rag  # Or create: conda create -n rag python=3.11
+   pip install -r requirements.txt
    
-   # OR using pip
+   # OR using Poetry (for dependency resolution only)
+   poetry install --no-root
+   # Note: Poetry is used for dependency resolution, but runtime uses conda
+   
+   # OR using pip with virtualenv
    python -m venv .venv
    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
    pip install -r requirements.txt
    
    # Configure environment
    # Create .env in project root (not backend/.env)
-   cp .env.example .env  # If .env.example exists, or create manually
-   # Edit .env and add your GOOGLE_API_KEY
+   cp .env.example .env
+   # Edit .env and add your GOOGLE_API_KEY and configure other settings
    ```
 
 4. **Frontend Setup**
@@ -177,6 +204,10 @@ For development without Docker (requires manual installation of system dependenc
    ```bash
    # Terminal 1: Start Backend
    cd backend
+   conda activate rag
+   python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+   
+   # OR using Poetry (if not using conda)
    poetry run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
    
    # Terminal 2: Start Frontend
@@ -254,35 +285,49 @@ docker exec -it multimodal-rag-frontend sh
 
 ### Backend Environment Variables
 
-Create `.env` file in the project root:
+Create `.env` file in the project root (copy from `.env.example`):
 
 ```env
-# REQUIRED: Google Gemini API Key
+# ============================================================================
+# Google Gemini API Configuration
+# ============================================================================
 GOOGLE_API_KEY=your_google_gemini_api_key_here
-
-# Optional: Model overrides
 CHAT_MODEL_ID=gemini-2.0-flash
 TEXT_SUMMARIZER_MODEL_ID=gemini-2.0-flash
 IMAGE_SUMMARIZER_MODEL_ID=gemini-2.0-flash
+EMBEDDING_API_MODEL_ID=models/text-embedding-004
 
-# Ollama Configuration
-# For local dev: http://localhost:11434
-# For Docker: http://ollama:11434 (automatically set in docker-compose)
-OLLAMA_BASE_URL=http://localhost:11434
+# ============================================================================
+# Ollama Configuration (Local Embeddings)
+# ============================================================================
+# Set USE_OLLAMA_EMBEDDINGS=true to use local Ollama embeddings
+# When false, uses Google Gemini API embeddings (text-only mode for serverless)
+USE_OLLAMA_EMBEDDINGS=true
+OLLAMA_BASE_URL=http://localhost:11434  # For Docker: http://ollama:11434
 EMBEDDING_MODEL_ID=embeddinggemma:latest
 
-# Database (optional)
-DATABASE_URL=sqlite:///./data/app.db
+# ============================================================================
+# CORS Configuration
+# ============================================================================
+# Set CORS_ALLOW_ALL=true to allow all origins (recommended for development)
+CORS_ALLOW_ALL=true
 
-# Logging (optional)
-LOG_LEVEL=INFO
-
-# Concurrency (optional)
+# ============================================================================
+# Performance & Limits
+# ============================================================================
 TEXT_SUMMARIZER_MAX_WORKERS=4
-
-# Upload constraints (optional)
 MAX_UPLOAD_MB=25
 ```
+
+**Key Configuration Options:**
+
+- **`USE_OLLAMA_EMBEDDINGS`**: 
+  - `true` (default): Use local Ollama embeddings (multimodal: text + tables + images)
+  - `false`: Use Google Gemini API embeddings (text-only mode, suitable for serverless deployment)
+
+- **`CORS_ALLOW_ALL`**: 
+  - `true` (recommended for development): Allows all origins
+  - `false`: Uses default allowed origins (localhost:5173, localhost:3000, etc.)
 
 ### Frontend Configuration
 
@@ -348,7 +393,12 @@ See [backend/README.md](./backend/README.md) for detailed API documentation.
 ## 🤖 Models Used
 
 - **Google Gemini 2.0 Flash**: Chat, text summarization, and image analysis
-- **Ollama EmbeddingGemma**: Local embeddings for semantic search
+- **Ollama EmbeddingGemma**: Local embeddings for semantic search (when `USE_OLLAMA_EMBEDDINGS=true`)
+- **Google Gemini Text Embedding 004**: API-based embeddings (when `USE_OLLAMA_EMBEDDINGS=false`)
+
+**Embedding Provider Toggle:**
+- Set `USE_OLLAMA_EMBEDDINGS=true` for local multimodal processing (text + tables + images)
+- Set `USE_OLLAMA_EMBEDDINGS=false` for serverless deployment (text-only mode)
 
 ## 🛠️ Technology Stack
 
@@ -382,6 +432,10 @@ See [backend/README.md](./backend/README.md) for detailed API documentation.
 ### Backend Development
 ```bash
 cd backend
+conda activate rag
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# OR using Poetry
 poetry run uvicorn app.main:app --reload
 ```
 
